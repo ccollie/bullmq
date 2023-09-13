@@ -734,6 +734,37 @@ export class Job<
   }
 
   /**
+   * Gets the total time that a job spends in the queue, from creation until completion
+   * @returns number duration in milliseconds the job was delayed for.
+   */
+  get responseTime(): number | null {
+    return typeof this.finishedOn === 'number'
+      ? this.finishedOn - this.timestamp
+      : null;
+  }
+
+  /**
+   * Get the time the job spends in the worker
+   * @returns number duration in milliseconds the job spent in the worker on its last run.
+   */
+  get runtime(): number {
+    return typeof this.finishedOn === 'number' &&
+      typeof this.processedOn === 'number'
+      ? this.finishedOn - this.processedOn
+      : null;
+  }
+
+  /**
+   * Gets the amount of time a job waits in the queue before being picked up by a worker.
+   * @returns number duration in milliseconds the job spent in the worker on its last run.
+   */
+  get waitTime(): number | null {
+    return typeof this.processedOn === 'number'
+      ? this.processedOn - this.timestamp
+      : null;
+  }
+
+  /**
    * Change delay of a delayed job.
    *
    * @param delay - milliseconds to be added to current time.
