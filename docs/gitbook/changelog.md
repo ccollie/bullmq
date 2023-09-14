@@ -1,11 +1,22 @@
+# [4.10.0](https://github.com/taskforcesh/bullmq/compare/v4.9.0...v4.10.0) (2023-09-12)
+
+
+### Bug Fixes
+
+* **move-to-finished:** consider addition of prioritized jobs when processing last active job ([#2176](https://github.com/taskforcesh/bullmq/issues/2176)) (python) ([4b01f35](https://github.com/taskforcesh/bullmq/commit/4b01f359c290cfc62ea74ff3ab0b43ccc6956a02))
+* **remove:** change error message when job is locked (python) ([#2175](https://github.com/taskforcesh/bullmq/issues/2175)) ([2f5628f](https://github.com/taskforcesh/bullmq/commit/2f5628feffab66cdcc78abf4d7bb608bdcaa65bb))
+
+
+### Features
+
+* **flow-producer:** add addBulk method (python) ([#2174](https://github.com/taskforcesh/bullmq/issues/2174)) ([c67dfb4](https://github.com/taskforcesh/bullmq/commit/c67dfb49931ee4cb96573af660e9f2316942687c))
+
 # [4.9.0](https://github.com/taskforcesh/bullmq/compare/v4.8.0...v4.9.0) (2023-09-05)
 
 
 ### Features
 
 * **connection:** provide skipVersionCheck option for shared connections ([#2149](https://github.com/taskforcesh/bullmq/issues/2149)) ref [#2148](https://github.com/taskforcesh/bullmq/issues/2148) ([914820f](https://github.com/taskforcesh/bullmq/commit/914820f720cbc48b49f4bd1c46d148eb2bb5b79c))
-* **python:** add addBulk method in queue class ([#2161](https://github.com/taskforcesh/bullmq/issues/2161)) ([555dd44](https://github.com/taskforcesh/bullmq/commit/555dd44a0190f4957e43f083e2f59d7f58b90ac9))
-* **python:** add flow producer class ([#2115](https://github.com/taskforcesh/bullmq/issues/2115)) ([14a769b](https://github.com/taskforcesh/bullmq/commit/14a769b193d97576ff9b3f2a65de47463ba04ffd))
 
 # [4.8.0](https://github.com/taskforcesh/bullmq/compare/v4.7.4...v4.8.0) (2023-08-20)
 
