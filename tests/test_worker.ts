@@ -1,7 +1,6 @@
-import { expect } from 'chai';
 import { default as IORedis } from 'ioredis';
 import { after, times } from 'lodash';
-import { describe, beforeEach, it } from 'mocha';
+import { afterEach, describe, beforeEach, expect, it, vi } from 'vitest';
 import * as sinon from 'sinon';
 import { v4 } from 'uuid';
 import {
@@ -242,6 +241,7 @@ describe('workers', function () {
       expectedCount: number,
       fail?: boolean,
     ) {
+      vi.useFakeTimers();
       const clock = sinon.useFakeTimers();
       clock.reset();
 
@@ -580,7 +580,6 @@ describe('workers', function () {
   });
 
   it('process a lifo queue', async function () {
-    this.timeout(3000);
     let currentValue = 0;
     let first = true;
 
@@ -622,7 +621,7 @@ describe('workers', function () {
     await processing;
 
     await worker.close();
-  });
+  }, 3000);
 
   it('should process jobs by priority', async () => {
     const normalPriority: Promise<Job>[] = [];
@@ -678,8 +677,7 @@ describe('workers', function () {
   });
 
   describe('when prioritized job is added while processing last active job', () => {
-    it('should process prioritized job whithout delay', async function () {
-      this.timeout(1000);
+    it('should process prioritized job without delay', async function () {
       await queue.add('test1', { p: 2 }, { priority: 2 });
       let counter = 0;
       let processor;
@@ -708,7 +706,7 @@ describe('workers', function () {
       await processing;
 
       await worker.close();
-    });
+    }, 1000);
   });
 
   it('process several jobs serially', async () => {
@@ -854,7 +852,7 @@ describe('workers', function () {
         });
         await worker.waitUntilReady();
 
-        await expect(worker.run()).to.be.rejectedWith(
+        await expect(worker.run()).rejects.toThrow(
           'No process function is defined.',
         );
 
@@ -876,7 +874,7 @@ describe('workers', function () {
           await queue.add('test', { foo: 'bar', num: i });
         }
 
-        await expect(worker.run()).to.be.rejectedWith(
+        await expect(worker.run()).rejects.toThrow(
           'Worker is already running.',
         );
 
@@ -1127,7 +1125,6 @@ describe('workers', function () {
   });
 
   it('does not process a job that is being processed when a new queue starts', async () => {
-    this.timeout(12000);
     let err;
 
     const worker = new Worker(
@@ -1167,7 +1164,7 @@ describe('workers', function () {
     if (err) {
       throw err;
     }
-  });
+  }, 12000);
 
   it('process a job that throws an exception', async () => {
     const jobError = new Error('Job Failed');
@@ -1449,8 +1446,6 @@ describe('workers', function () {
   });
 
   it('keeps locks for all the jobs that are processed concurrently', async function () {
-    this.timeout(10000);
-
     const concurrency = 57;
 
     const lockKey = (jobId: string) => `bull:${queueName}:${jobId}:lock`;
@@ -1502,11 +1497,9 @@ describe('workers', function () {
     await processing;
 
     await worker.close();
-  });
+  }, 10000);
 
   it('emits error if lock is lost', async function () {
-    this.timeout(10000);
-
     const worker = new Worker(
       queueName,
       async () => {
@@ -1537,11 +1530,9 @@ describe('workers', function () {
     await workerError;
 
     await worker.close();
-  });
+  }, 10000);
 
   it('emits error if lock is "stolen"', async function () {
-    this.timeout(10000);
-
     const connection = new IORedis({
       host: 'localhost',
       maxRetriesPerRequest: null,
@@ -1576,11 +1567,10 @@ describe('workers', function () {
     await workerError;
 
     await worker.close();
-  });
+  }, 10000);
 
   it('continues processing after a worker has stalled', async function () {
     let first = true;
-    this.timeout(10000);
 
     const worker = new Worker(
       queueName,
@@ -1608,10 +1598,9 @@ describe('workers', function () {
     await completed;
 
     await worker.close();
-  });
+  }, 10000);
 
   it('stalled interval cannot be zero', function () {
-    this.timeout(8000);
     expect(
       () =>
         new Worker(queueName, async () => {}, {
@@ -1619,7 +1608,7 @@ describe('workers', function () {
           stalledInterval: 0,
         }),
     ).to.throw('stalledInterval must be greater than 0');
-  });
+  }, 8000);
 
   describe('Concurrency process', () => {
     it('should thrown an exception if I specify a concurrency of 0', () => {
@@ -1681,7 +1670,6 @@ describe('workers', function () {
     //This job use delay to check that at any time we have 4 process in parallel.
     //Due to time to get new jobs and call process, false negative can appear.
     it('should process job respecting the concurrency set', async function () {
-      this.timeout(10000);
       let nbProcessing = 0;
       let pendingMessageToProcess = 8;
       let wait = 10;
@@ -1723,12 +1711,11 @@ describe('workers', function () {
 
       await waiting;
       await worker.close();
-    });
+    }, 10000);
 
     describe('when changing concurrency', () => {
       describe('when increasing value', () => {
         it('should process job respecting the current concurrency set', async function () {
-          this.timeout(10000);
           let nbProcessing = 0;
           let pendingMessageToProcess = 16;
           let wait = 10;
@@ -1793,12 +1780,11 @@ describe('workers', function () {
           await waiting2;
 
           await worker.close();
-        });
+        }, 10000);
       });
 
       describe('when decreasing value', () => {
         it('should process job respecting the current concurrency set', async function () {
-          this.timeout(10000);
           let nbProcessing = 0;
           let pendingMessageToProcess = 20;
           let wait = 100;
@@ -1861,13 +1847,11 @@ describe('workers', function () {
           await waiting1;
 
           await worker.close();
-        });
+        }, 10000);
       });
     });
 
     it('should wait for all concurrent processing in case of pause', async function () {
-      this.timeout(10000);
-
       let i = 0;
       let nbJobFinish = 0;
 
@@ -1914,7 +1898,7 @@ describe('workers', function () {
       await waiting;
 
       await worker.close();
-    });
+    }, 10000);
   });
 
   describe('Retries and backoffs', () => {
@@ -2251,8 +2235,6 @@ describe('workers', function () {
     });
 
     it('should retry a job after a delay if a fixed backoff is given', async function () {
-      this.timeout(10000);
-
       const worker = new Worker(
         queueName,
         async job => {
@@ -2284,12 +2266,10 @@ describe('workers', function () {
       });
 
       await worker.close();
-    });
+    }, 10000);
 
     describe('when UnrecoverableError is throw', () => {
       it('moves job to failed', async function () {
-        this.timeout(8000);
-
         const worker = new Worker(
           queueName,
           async job => {
@@ -2334,13 +2314,11 @@ describe('workers', function () {
         expect(state).to.be.equal('failed');
 
         await worker.close();
-      });
+      }, 8000);
     });
 
     describe('when providing a way to execute step jobs', () => {
       it('should retry a job after a delay if a fixed backoff is given, keeping the current step', async function () {
-        this.timeout(8000);
-
         enum Step {
           Initial,
           Second,
@@ -2402,12 +2380,10 @@ describe('workers', function () {
         });
 
         await worker.close();
-      });
+      }, 8000);
 
       describe('when moving job to delayed in one step', () => {
         it('should retry job after a delay time, keeping the current step', async function () {
-          this.timeout(8000);
-
           enum Step {
             Initial,
             Second,
@@ -2463,12 +2439,11 @@ describe('workers', function () {
           });
 
           await worker.close();
-        });
+        }, 8000);
       });
 
       describe('when creating children at runtime', () => {
         it('should wait children as one step of the parent job', async function () {
-          this.timeout(8000);
           const parentQueueName = `parent-queue-${v4()}`;
           const parentQueue = new Queue(parentQueueName, { connection });
 
@@ -2578,13 +2553,11 @@ describe('workers', function () {
           await worker.close();
           await childrenWorker.close();
           await parentQueue.close();
-        });
+        }, 8000);
       });
     });
 
     it('should retry a job after a delay if an exponential backoff is given', async function () {
-      this.timeout(10000);
-
       const worker = new Worker(
         queueName,
         async job => {
@@ -2620,11 +2593,9 @@ describe('workers', function () {
       });
 
       await worker.close();
-    });
+    }, 10000);
 
     it('should retry a job after a delay if a custom backoff is given', async function () {
-      this.timeout(10000);
-
       const worker = new Worker(
         queueName,
         async job => {
@@ -2665,12 +2636,10 @@ describe('workers', function () {
       });
 
       await worker.close();
-    });
+    }, 10000);
 
     describe('when applying custom backoff by type', () => {
       it('should retry a job after a delay for custom type', async function () {
-        this.timeout(10000);
-
         const worker = new Worker(
           queueName,
           async job => {
@@ -2745,7 +2714,7 @@ describe('workers', function () {
         });
 
         await worker.close();
-      });
+      }, 10000);
     });
 
     it('should not retry a job if the custom backoff returns -1', async () => {
@@ -2797,8 +2766,6 @@ describe('workers', function () {
     it('should retry a job after a delay if a custom backoff is given based on the error thrown', async function () {
       class CustomError extends Error {}
 
-      this.timeout(12000);
-
       const worker = new Worker(
         queueName,
         async job => {
@@ -2844,14 +2811,12 @@ describe('workers', function () {
       });
 
       await worker.close();
-    });
+    }, 12000);
 
     it('should retry a job after a delay if a custom backoff is given based on the job data', async function () {
       class CustomError extends Error {
         failedIds: number[];
       }
-
-      this.timeout(5000);
 
       const worker = new Worker(
         queueName,
@@ -2905,11 +2870,9 @@ describe('workers', function () {
       });
 
       await worker.close();
-    });
+    }, 5000);
 
     it('should be able to handle a custom backoff if it returns a promise', async function () {
-      this.timeout(10000);
-
       const worker = new Worker(
         queueName,
         async (job: Job) => {
@@ -2949,7 +2912,7 @@ describe('workers', function () {
       });
 
       await worker.close();
-    });
+    }, 10000);
 
     it('should not retry a job that has been removed', async () => {
       const failedError = new Error('failed');
@@ -2993,7 +2956,7 @@ describe('workers', function () {
       await delay(10);
       await queue.clean(0, 0);
 
-      await expect(retriedJob.retry()).to.be.rejectedWith(
+      await expect(retriedJob.retry()).rejects.toThrow(
         `Missing key for job ${retriedJob.id}. reprocessJob`,
       );
 
@@ -3045,7 +3008,7 @@ describe('workers', function () {
       const completedCount = await queue.getCompletedCount();
       expect(completedCount).to.equal(1);
 
-      await expect(retriedJob.retry()).to.be.rejectedWith(
+      await expect(retriedJob.retry()).rejects.toThrow(
         `Job ${retriedJob.id} is not in the failed state. reprocessJob`,
       );
 
@@ -3105,7 +3068,7 @@ describe('workers', function () {
       const failedCount = await queue.getFailedCount();
       expect(failedCount).to.equal(1);
 
-      await expect(retriedJob.retry('completed')).to.be.rejectedWith(
+      await expect(retriedJob.retry('completed')).rejects.toThrow(
         `Job ${retriedJob.id} is not in the completed state. reprocessJob`,
       );
 
@@ -3136,7 +3099,7 @@ describe('workers', function () {
 
       await activating;
 
-      await expect(job.retry()).to.be.rejectedWith(
+      await expect(job.retry()).rejects.toThrow(
         `Job ${job.id} is not in the failed state. reprocessJob`,
       );
 
@@ -3374,7 +3337,7 @@ describe('workers', function () {
                 queue: 'bull:' + queueName,
               },
             }),
-          ).to.be.rejectedWith(
+          ).rejects.toThrow(
             `Missing lock for job ${parent.id}. moveToWaitingChildren`,
           );
 
@@ -3385,7 +3348,7 @@ describe('workers', function () {
                 queue: 'bull:' + queueName,
               },
             }),
-          ).to.be.rejectedWith(
+          ).rejects.toThrow(
             `Job ${parent.id} is not in the active state. moveToWaitingChildren`,
           );
 

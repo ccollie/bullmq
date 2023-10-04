@@ -1,4 +1,4 @@
-import { expect } from 'chai';
+import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { ChildPool } from '../src/classes';
 import { join } from 'path';
 
@@ -85,7 +85,7 @@ function sandboxProcessTests(
       expect(children).to.have.length(6);
       const child = await pool.retain(processor);
       expect(children).not.to.include(child);
-    }).timeout(10000);
+    }, 10000);
 
     it('should return an old child if many retained and one free', async () => {
       const processor = __dirname + '/fixtures/fixture_processor_bar.js';
@@ -102,7 +102,7 @@ function sandboxProcessTests(
       pool.release(children[0]);
       const child = await pool.retain(processor);
       expect(children).to.include(child);
-    }).timeout(10000);
+    }, 10000);
 
     it('should consume execArgv array from process', async () => {
       const processor = __dirname + '/fixtures/fixture_processor_bar.js';

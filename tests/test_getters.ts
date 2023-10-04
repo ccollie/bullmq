@@ -1,9 +1,8 @@
 /*eslint-env node */
 'use strict';
 
-import { expect } from 'chai';
 import { after } from 'lodash';
-import { describe, beforeEach, it } from 'mocha';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { default as IORedis } from 'ioredis';
 import { v4 } from 'uuid';
 import { FlowProducer, Queue, QueueEvents, Worker } from '../src/classes';

@@ -1,4 +1,4 @@
-import { expect } from 'chai';
+import { describe, expect, it } from 'vitest';
 import { AsyncFifoQueue } from '../src/classes/async-fifo-queue';
 
 describe('AsyncFIFOQueue', () => {
@@ -68,7 +68,7 @@ describe('AsyncFIFOQueue', () => {
 
     const results: number[] = [];
     for (let i = 0; i < promises.length; i++) {
-      results.push((await asyncFifoQueue.fetch())!);
+      results.push((await asyncFifoQueue.fetch())! as number);
     }
 
     expect(results).to.be.eql([1, 2, 3, 4, 5]);
@@ -93,7 +93,7 @@ describe('AsyncFIFOQueue', () => {
 
     const results: number[] = [];
     for (let i = 0; i < promises.length; i++) {
-      results.push((await asyncFifoQueue.fetch())!);
+      results.push((await asyncFifoQueue.fetch())! as number);
     }
 
     expect(results).to.be.eql(randomDelays.sort((a, b) => a - b));
@@ -118,7 +118,7 @@ describe('AsyncFIFOQueue', () => {
 
       if ((i + 1) % concurrency === 0) {
         for (let j = 0; j < concurrency; j++) {
-          results.push((await asyncFifoQueue.fetch())!);
+          results.push((await asyncFifoQueue.fetch())! as number);
         }
       }
     }
@@ -143,7 +143,7 @@ describe('AsyncFIFOQueue', () => {
 
     const results: number[] = [];
     for (let i = 0; i < randomDelays.length; i++) {
-      results.push((await asyncFifoQueue.fetch())!);
+      results.push((await asyncFifoQueue.fetch())! as number);
     }
 
     expect(results).to.be.eql(randomDelays.map(() => void 0));

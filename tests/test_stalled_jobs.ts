@@ -2,9 +2,8 @@ import { Queue, Worker, QueueEvents } from '../src/classes';
 import { delay, removeAllQueueData } from '../src/utils';
 import { default as IORedis } from 'ioredis';
 import { after } from 'lodash';
-import { beforeEach, describe, it } from 'mocha';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { v4 } from 'uuid';
-import { expect } from 'chai';
 
 describe('stalled jobs', function () {
   let queue: Queue;
@@ -23,8 +22,6 @@ describe('stalled jobs', function () {
   });
 
   it('process stalled jobs when starting a queue', async function () {
-    this.timeout(10000);
-
     const queueEvents = new QueueEvents(queueName, { connection });
     await queueEvents.waitUntilReady();
 
@@ -90,7 +87,7 @@ describe('stalled jobs', function () {
 
     await queueEvents.close();
     await worker2.close();
-  });
+  }, 10000);
 
   it("don't process stalled jobs when starting a queue with skipStalledCheck", async function () {
     const concurrency = 4;
@@ -124,8 +121,6 @@ describe('stalled jobs', function () {
   });
 
   it('fail stalled jobs that stall more than allowable stalled limit', async function () {
-    this.timeout(6000);
-
     const queueEvents = new QueueEvents(queueName, { connection });
     await queueEvents.waitUntilReady();
 
@@ -194,12 +189,10 @@ describe('stalled jobs', function () {
 
     await queueEvents.close();
     await worker2.close();
-  });
+  }, 6000);
 
   describe('when stalled jobs stall more than allowable stalled limit', function () {
     it('moves jobs to failed', async function () {
-      this.timeout(6000);
-
       const queueEvents = new QueueEvents(queueName, { connection });
       await queueEvents.waitUntilReady();
 
@@ -279,11 +272,9 @@ describe('stalled jobs', function () {
 
       await queueEvents.close();
       await worker2.close();
-    });
+    }, 6000);
 
     it('moves jobs to failed with maxStalledCount > 1', async function () {
-      this.timeout(60000);
-
       const queueEvents = new QueueEvents(queueName, { connection });
       await queueEvents.waitUntilReady();
 
@@ -359,11 +350,10 @@ describe('stalled jobs', function () {
       }
 
       await queueEvents.close();
-    });
+    }, 60000);
 
     describe('when removeOnFail is provided as a number', function () {
       it('keeps the specified number of jobs in failed', async function () {
-        this.timeout(6000);
         const concurrency = 4;
 
         const worker = new Worker(
@@ -426,12 +416,11 @@ describe('stalled jobs', function () {
         await allFailed;
 
         await worker2.close();
-      });
+      }, 6000);
     });
 
     describe('when removeOnFail is provided as boolean', function () {
       it('keeps the jobs with removeOnFail as false in failed', async function () {
-        this.timeout(6000);
         const concurrency = 4;
 
         const worker = new Worker(
@@ -494,12 +483,11 @@ describe('stalled jobs', function () {
         await allFailed;
 
         await worker2.close();
-      });
+      }, 6000);
     });
 
     describe('when removeOnFail is provided as a object', function () {
       it('keeps the specified number of jobs in failed respecting the age', async function () {
-        this.timeout(6000);
         const concurrency = 4;
 
         const worker = new Worker(
@@ -567,12 +555,11 @@ describe('stalled jobs', function () {
         await allFailed;
 
         await worker2.close();
-      });
+      }, 6000);
     });
   });
 
   it('jobs not stalled while lock is extended', async function () {
-    this.timeout(5000);
     const numJobs = 4;
 
     const concurrency = 4;
@@ -623,5 +610,5 @@ describe('stalled jobs', function () {
     await allStalled;
 
     await worker2.close();
-  });
+  }, 5000);
 });

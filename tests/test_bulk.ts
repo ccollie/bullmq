@@ -1,6 +1,5 @@
-import { expect } from 'chai';
 import { default as IORedis } from 'ioredis';
-import { beforeEach, describe, it } from 'mocha';
+import { afterEach, expect, beforeEach, describe, it } from 'vitest';
 import { v4 } from 'uuid';
 import { Queue, Worker, Job } from '../src/classes';
 import { removeAllQueueData } from '../src/utils';

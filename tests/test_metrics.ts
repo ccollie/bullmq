@@ -1,7 +1,5 @@
-import { expect } from 'chai';
 import { default as IORedis } from 'ioredis';
-import { beforeEach, describe, it } from 'mocha';
-import * as sinon from 'sinon';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { v4 } from 'uuid';
 
 import { Queue, QueueEvents, Repeat, Worker } from '../src/classes';
@@ -13,7 +11,6 @@ const ONE_MINUTE = 60 * ONE_SECOND;
 const ONE_HOUR = 60 * ONE_MINUTE;
 
 describe('metrics', function () {
-  this.timeout(10000);
   let repeat: Repeat;
   let queue: Queue;
   let queueEvents: QueueEvents;
@@ -22,7 +19,7 @@ describe('metrics', function () {
   const connection = { host: 'localhost' };
 
   beforeEach(function () {
-    this.clock = sinon.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   beforeEach(async function () {
@@ -34,7 +31,7 @@ describe('metrics', function () {
   });
 
   afterEach(async function () {
-    this.clock.restore();
+    vi.useRealTimers();
     await queue.close();
     await repeat.close();
     await queueEvents.close();
@@ -43,8 +40,8 @@ describe('metrics', function () {
 
   it('should gather metrics for completed jobs', async function () {
     const date = new Date('2017-02-07 9:24:00');
-    this.clock.setSystemTime(date);
-    this.clock.tick(0);
+    vi.setSystemTime(date);
+    vi.advanceTimersByTime(0);
 
     const timmings = [
       0,
@@ -135,7 +132,7 @@ describe('metrics', function () {
     const worker = new Worker(
       queueName,
       async job => {
-        this.clock.tick(timmings[job.data.index]);
+        vi.advanceTimersByTime(timmings[job.data.index]);
       },
       {
         connection,
@@ -182,8 +179,8 @@ describe('metrics', function () {
 
   it('should only keep metrics for "maxDataPoints"', async function () {
     const date = new Date('2017-02-07 9:24:00');
-    this.clock.setSystemTime(date);
-    this.clock.tick(0);
+    vi.setSystemTime(date);
+    vi.advanceTimersByTime(0);
 
     const timmings = [
       0, // For the fixtures to work we need to use 0 as first timing
@@ -225,7 +222,7 @@ describe('metrics', function () {
     const worker = new Worker(
       queueName,
       async job => {
-        this.clock.tick(timmings[job.data.index]);
+        vi.advanceTimersByTime(timmings[job.data.index]);
       },
       {
         connection,
@@ -268,8 +265,8 @@ describe('metrics', function () {
 
   it('should gather metrics for failed jobs', async function () {
     const date = new Date('2017-02-07 9:24:00');
-    this.clock.setSystemTime(date);
-    this.clock.tick(0);
+    vi.setSystemTime(date);
+    vi.advanceTimersByTime(0);
 
     const timmings = [
       0, // For the fixtures to work we need to use 0 as first timing
@@ -289,7 +286,7 @@ describe('metrics', function () {
     const worker = new Worker(
       queueName,
       async job => {
-        this.clock.tick(timmings[job.data.index]);
+        vi.advanceTimersByTime(timmings[job.data.index]);
         throw new Error('test');
       },
       {
@@ -337,8 +334,8 @@ describe('metrics', function () {
 
   it('should get metrics with pagination', async function () {
     const date = new Date('2017-02-07 9:24:00');
-    this.clock.setSystemTime(date);
-    this.clock.tick(0);
+    vi.setSystemTime(date);
+    vi.advanceTimersByTime(0);
 
     const timmings = [
       0,
@@ -359,7 +356,7 @@ describe('metrics', function () {
     const worker = new Worker(
       queueName,
       async job => {
-        this.clock.tick(timmings[job.data.index]);
+        vi.advanceTimersByTime(timmings[job.data.index]);
       },
       {
         connection,
@@ -419,4 +416,4 @@ describe('metrics', function () {
     const metrics = await queue.getMetrics('completed');
     expect(data).to.be.deep.equal(metrics.data);
   });
-});
+}, 10000);

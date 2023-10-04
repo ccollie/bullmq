@@ -1,13 +1,11 @@
 import { default as IORedis } from 'ioredis';
 import { v4 } from 'uuid';
-import { expect } from 'chai';
 import { after } from 'lodash';
-import { beforeEach, describe, it } from 'mocha';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FlowProducer, Queue, QueueEvents, Worker } from '../src/classes';
 import { delay, removeAllQueueData } from '../src/utils';
 
 describe('events', function () {
-  this.timeout(8000);
   let queue: Queue;
   let queueEvents: QueueEvents;
   let queueName: string;
@@ -68,7 +66,7 @@ describe('events', function () {
 
         await queue2.add('test', { foo: 'bar' });
 
-        await expect(queueEvents2.run()).to.be.rejectedWith(
+        await expect(queueEvents2.run()).rejects.toThrow(
           'Queue Events is already running.',
         );
 
@@ -568,4 +566,4 @@ describe('events', function () {
     await trimmedQueue.close();
     await removeAllQueueData(new IORedis(), queueName);
   });
-});
+}, 8000);

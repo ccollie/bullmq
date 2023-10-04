@@ -1,7 +1,6 @@
-import { expect } from 'chai';
 import { default as IORedis } from 'ioredis';
 import { after } from 'lodash';
-import { beforeEach, describe, it } from 'mocha';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { v4 } from 'uuid';
 import { Queue, QueueEvents, FlowProducer, Worker, Job } from '../src/classes';
 import { delay, removeAllQueueData } from '../src/utils';
@@ -318,7 +317,7 @@ describe('Obliterate', function () {
 
     await job.waitUntilFinished(queueEvents);
 
-    await expect(queue.obliterate()).to.be.rejectedWith(
+    await expect(queue.obliterate()).rejects.toThrow(
       'Cannot obliterate queue with active jobs',
     );
     const client = await queue.client;
@@ -406,7 +405,6 @@ describe('Obliterate', function () {
   });
 
   it('should obliterate a queue with high number of jobs in different statuses', async function () {
-    this.timeout(6000);
     const arr1: Promise<Job<any, any, string>>[] = [];
     for (let i = 0; i < 300; i++) {
       arr1.push(queue.add('test', { foo: `barLoop${i}` }));
@@ -437,9 +435,9 @@ describe('Obliterate', function () {
 
     const [lastFailedJob] = (await Promise.all(arr2)).splice(-1);
 
-    await expect(
-      lastFailedJob.waitUntilFinished(queueEvents),
-    ).to.be.eventually.rejectedWith('failed job');
+    await expect(lastFailedJob.waitUntilFinished(queueEvents)).rejects.toThrow(
+      'failed job',
+    );
 
     await worker.close();
 
@@ -453,5 +451,5 @@ describe('Obliterate', function () {
     const client = await queue.client;
     const keys = await client.keys(`bull:${queue.name}*`);
     expect(keys.length).to.be.eql(0);
-  });
+  }, 6000);
 });

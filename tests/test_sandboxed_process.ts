@@ -1,8 +1,7 @@
-import { expect } from 'chai';
 import { default as IORedis } from 'ioredis';
 import { after } from 'lodash';
 import { FlowProducer, Job, Queue, QueueEvents, Worker } from '../src/classes';
-import { beforeEach } from 'mocha';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { v4 } from 'uuid';
 import { delay, removeAllQueueData } from '../src/utils';
 import { Child } from '../src/classes/child';
@@ -226,8 +225,6 @@ function sandboxProcessTests(
 
     describe('when processor throws UnrecoverableError', () => {
       it('moves job to failed', async function () {
-        this.timeout(6000);
-
         const processFile =
           __dirname + '/fixtures/fixture_processor_unrecoverable.js';
 
@@ -268,7 +265,7 @@ function sandboxProcessTests(
         expect(state).to.be.equal('failed');
 
         await worker.close();
-      });
+      }, 6000);
     });
 
     it('should process with named processor', async () => {
@@ -303,8 +300,6 @@ function sandboxProcessTests(
     });
 
     it('should process with concurrent processors', async function () {
-      this.timeout(10000);
-
       await Promise.all([
         queue.add('test', { foo: 'bar1' }),
         queue.add('test', { foo: 'bar2' }),
@@ -343,11 +338,9 @@ function sandboxProcessTests(
 
       await completing;
       await worker.close();
-    });
+    }, 10000);
 
     it('should reuse process with single processors', async function () {
-      this.timeout(30000);
-
       const processFile = __dirname + '/fixtures/fixture_processor_slow.js';
       const worker = new Worker(queueName, processFile, {
         connection,
@@ -386,7 +379,7 @@ function sandboxProcessTests(
       });
 
       await completing;
-    });
+    }, 30000);
 
     it('should process and update progress', async () => {
       const processFile =
@@ -688,9 +681,7 @@ function sandboxProcessTests(
 
       const job = await queue.add('test', {});
 
-      await expect(job.waitUntilFinished(queueEvents)).to.be.rejectedWith(
-        'boom!',
-      );
+      await expect(job.waitUntilFinished(queueEvents)).rejects.toThrow('boom!');
     });
 
     it('should fail if the process exits 0', async () => {
@@ -704,7 +695,7 @@ function sandboxProcessTests(
 
       const job = await queue.add('test', { exitCode: 0 });
 
-      await expect(job.waitUntilFinished(queueEvents)).to.be.rejectedWith(
+      await expect(job.waitUntilFinished(queueEvents)).rejects.toThrow(
         'Unexpected exit code: 0 signal: null',
       );
     });
@@ -720,7 +711,7 @@ function sandboxProcessTests(
 
       const job = await queue.add('test', { exitCode: 1 });
 
-      await expect(job.waitUntilFinished(queueEvents)).to.be.rejectedWith(
+      await expect(job.waitUntilFinished(queueEvents)).rejects.toThrow(
         'Unexpected exit code: 1 signal: null',
       );
     });
@@ -736,7 +727,7 @@ function sandboxProcessTests(
 
       const job = await queue.add('test', { exitCode: 1 });
 
-      await expect(job.waitUntilFinished(queueEvents)).to.be.rejectedWith(
+      await expect(job.waitUntilFinished(queueEvents)).rejects.toThrow(
         'Broken file processor',
       );
     });
@@ -754,7 +745,7 @@ function sandboxProcessTests(
 
         const job = await queue.add('test', {});
 
-        await expect(job.waitUntilFinished(queueEvents)).to.be.rejectedWith(
+        await expect(job.waitUntilFinished(queueEvents)).rejects.toThrow(
           'No function is exported in processor file',
         );
       });
@@ -796,14 +787,13 @@ function sandboxProcessTests(
     });
 
     it('should allow the job to complete and then exit on worker close', async function () {
-      this.timeout(1500000);
       const processFile = __dirname + '/fixtures/fixture_processor_slow.js';
       const worker = new Worker(queueName, processFile, {
         connection,
         useWorkerThreads,
       });
 
-      // acquire and release a child here so we know it has it's full termination handler setup
+      // acquire and release a child here, so we know it has it's full termination handler setup
       const initializedChild = await worker['childPool'].retain(processFile);
       await worker['childPool'].release(initializedChild);
 
@@ -839,6 +829,6 @@ function sandboxProcessTests(
       // check that the job did finish successfully
       const jobResult = await job.waitUntilFinished(queueEvents);
       expect(jobResult).to.equal(42);
-    });
+    }, 1500000);
   });
 }

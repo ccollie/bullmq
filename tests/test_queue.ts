@@ -67,18 +67,14 @@ describe('Queue', function() {
 });
 */
 
-import { expect } from 'chai';
 import { after } from 'lodash';
 import { default as IORedis } from 'ioredis';
-import { describe, beforeEach, it } from 'mocha';
-import * as sinon from 'sinon';
+import { afterEach, describe, beforeEach, expect, it } from 'vitest';
 import { v4 } from 'uuid';
 import { FlowProducer, Job, Queue, Worker } from '../src/classes';
 import { delay, removeAllQueueData } from '../src/utils';
 
 describe('queues', function () {
-  const sandbox = sinon.createSandbox();
-
   let queue: Queue;
   let queueName: string;
 
@@ -91,7 +87,7 @@ describe('queues', function () {
   });
 
   afterEach(async function () {
-    sandbox.restore();
+    // sandbox.restore();
     await queue.close();
     await removeAllQueueData(new IORedis(), queueName);
   });
@@ -102,7 +98,7 @@ describe('queues', function () {
       it('throws error', async function () {
         await expect(
           queue.add('test', { foo: 1 }, { jobId: '2' }),
-        ).to.be.rejectedWith('Custom Ids cannot be integers');
+        ).rejects.toThrow('Custom Ids cannot be integers');
       });
     });
   });

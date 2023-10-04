@@ -1,10 +1,9 @@
 /*eslint-env node */
 'use strict';
 
-import { expect } from 'chai';
 import { default as IORedis } from 'ioredis';
 import { after } from 'lodash';
-import { afterEach, beforeEach, describe, it } from 'mocha';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { v4 } from 'uuid';
 import { Job, Queue, QueueEvents, Worker } from '../src/classes';
 import { JobsOptions } from '../src/types';
@@ -78,7 +77,7 @@ describe('Job', function () {
     it('should set default size limit and fail due to size limit exception', async () => {
       const data = { foo: 'bar' }; // 13 bytes
       const opts = { sizeLimit: 12 };
-      await expect(Job.create(queue, 'test', data, opts)).to.be.rejectedWith(
+      await expect(Job.create(queue, 'test', data, opts)).rejects.toThrow(
         `The size of job test exceeds the limit ${opts.sizeLimit} bytes`,
       );
     });
@@ -86,7 +85,7 @@ describe('Job', function () {
     it('should set default size limit with non-ascii data and fail due to size limit exception', async () => {
       const data = { foo: 'βÅ®' }; // 16 bytes
       const opts = { sizeLimit: 15 };
-      await expect(Job.create(queue, 'test', data, opts)).to.be.rejectedWith(
+      await expect(Job.create(queue, 'test', data, opts)).rejects.toThrow(
         `The size of job test exceeds the limit ${opts.sizeLimit} bytes`,
       );
     });
@@ -94,7 +93,7 @@ describe('Job', function () {
     it('should set custom job id and default size limit and fail due to size limit exception', async () => {
       const data = { foo: 'bar' }; // 13 bytes
       const opts = { sizeLimit: 12, jobId: 'customJobId' };
-      await expect(Job.create(queue, 'test', data, opts)).to.be.rejectedWith(
+      await expect(Job.create(queue, 'test', data, opts)).rejects.toThrow(
         `The size of job test exceeds the limit ${opts.sizeLimit} bytes`,
       );
     });
@@ -104,7 +103,7 @@ describe('Job', function () {
         const data = { foo: 'bar' };
         const parentId = v4();
         const opts = { parent: { id: parentId, queue: queueName } };
-        await expect(Job.create(queue, 'test', data, opts)).to.be.rejectedWith(
+        await expect(Job.create(queue, 'test', data, opts)).rejects.toThrow(
           `Missing key for parent job ${queueName}:${parentId}. addJob`,
         );
       });
@@ -114,7 +113,7 @@ describe('Job', function () {
       it('throws an error', async () => {
         const data = { foo: 'bar' };
         const opts = { repeat: { every: 200 }, delay: 1000 };
-        await expect(Job.create(queue, 'test', data, opts)).to.be.rejectedWith(
+        await expect(Job.create(queue, 'test', data, opts)).rejects.toThrow(
           'Delay and repeat options could not be used together',
         );
       });
@@ -127,7 +126,7 @@ describe('Job', function () {
           removeDependencyOnFailure: true,
           failParentOnFailure: true,
         };
-        await expect(Job.create(queue, 'test', data, opts)).to.be.rejectedWith(
+        await expect(Job.create(queue, 'test', data, opts)).rejects.toThrow(
           'RemoveDependencyOnFailure and failParentOnFailure options can not be used together',
         );
       });
@@ -137,7 +136,7 @@ describe('Job', function () {
       it('throws an error', async () => {
         const data = { foo: 'bar' };
         const opts = { priority: 1.1 };
-        await expect(Job.create(queue, 'test', data, opts)).to.be.rejectedWith(
+        await expect(Job.create(queue, 'test', data, opts)).rejects.toThrow(
           'Priority should not be float',
         );
       });
@@ -147,7 +146,7 @@ describe('Job', function () {
       it('throws an error', async () => {
         const data = { foo: 'bar' };
         const opts = { priority: 2097153 };
-        await expect(Job.create(queue, 'test', data, opts)).to.be.rejectedWith(
+        await expect(Job.create(queue, 'test', data, opts)).rejects.toThrow(
           'Priority should be between 0 and 2097152',
         );
       });
@@ -227,7 +226,7 @@ describe('Job', function () {
       it('throws error', async function () {
         const job = await Job.create(queue, 'test', { foo: 'bar' });
         await job.remove();
-        await expect(job.updateData({ foo: 'baz' })).to.be.rejectedWith(
+        await expect(job.updateData({ foo: 'baz' })).rejects.toThrow(
           `Missing key for job ${job.id}. updateData`,
         );
       });
@@ -289,7 +288,6 @@ describe('Job', function () {
     });
 
     it('removes 4000 jobs in time rage of 4000ms', async function () {
-      this.timeout(4000);
       const numJobs = 4000;
 
       // Create waiting jobs
@@ -317,7 +315,7 @@ describe('Job', function () {
 
       const countJobs = await queue.getJobCountByTypes('waiting', 'delayed');
       expect(countJobs).to.be.equal(0);
-    });
+    }, 4000);
   });
 
   // TODO: Add more remove tests
@@ -359,7 +357,7 @@ describe('Job', function () {
         await job.remove();
         await expect(
           job.updateProgress({ total: 120, completed: 40 }),
-        ).to.be.rejectedWith(`Missing key for job ${job.id}. updateProgress`);
+        ).rejects.toThrow(`Missing key for job ${job.id}. updateProgress`);
       });
     });
   });
@@ -593,9 +591,7 @@ describe('Job', function () {
       const isActive = await job.isActive();
       expect(isActive).to.be.equal(true);
 
-      await expect(
-        job.moveToCompleted('return value', token),
-      ).to.be.rejectedWith(
+      await expect(job.moveToCompleted('return value', token)).rejects.toThrow(
         `Job ${job.id} has pending dependencies. moveToFinished`,
       );
 
@@ -677,7 +673,7 @@ describe('Job', function () {
 
         await expect(
           job.moveToFailed(new Error('test error'), '0'),
-        ).to.be.rejectedWith(`Missing key for job ${job.id}. failed`);
+        ).rejects.toThrow(`Missing key for job ${job.id}. failed`);
 
         const processed = await client.hgetall(`bull:${queueName}:${job.id}`);
 
@@ -775,8 +771,6 @@ describe('Job', function () {
 
   describe('.changeDelay', () => {
     it('can change delay of a delayed job', async function () {
-      this.timeout(8000);
-
       const worker = new Worker(queueName, async () => {}, { connection });
       await worker.waitUntilReady();
 
@@ -816,11 +810,11 @@ describe('Job', function () {
       const isDelayed = await job.isDelayed();
       expect(isDelayed).to.be.equal(false);
 
-      await expect(job.changeDelay(2000)).to.be.rejectedWith(
+      await expect(job.changeDelay(2000)).rejects.toThrow(
         `Job ${job.id} is not in the delayed state. changeDelay`,
       );
     });
-  });
+  }, 8000);
 
   describe('.changePriority', () => {
     it('can change priority of a job', async function () {
@@ -1016,7 +1010,7 @@ describe('Job', function () {
         const job = await Job.create(queue, 'test', { foo: 'bar' });
         await job.remove();
 
-        await expect(job.changePriority({ priority: 2 })).to.be.rejectedWith(
+        await expect(job.changePriority({ priority: 2 })).rejects.toThrow(
           `Missing key for job ${job.id}. changePriority`,
         );
       });
@@ -1042,7 +1036,6 @@ describe('Job', function () {
     });
 
     it('should process a promoted job according to its priority', async function () {
-      this.timeout(5000);
       const completed: string[] = [];
       const worker = new Worker(
         queueName,
@@ -1077,14 +1070,14 @@ describe('Job', function () {
       worker.run();
 
       await completing;
-    });
+    }, 5000);
 
     it('should not promote a job that is not delayed', async () => {
       const job = await Job.create(queue, 'test', { foo: 'bar' });
       const isDelayed = await job.isDelayed();
       expect(isDelayed).to.be.equal(false);
 
-      await expect(job.promote()).to.be.rejectedWith(
+      await expect(job.promote()).rejects.toThrow(
         `Job ${job.id} is not in the delayed state. promote`,
       );
     });
@@ -1333,7 +1326,7 @@ describe('Job', function () {
 
         await completed;
 
-        await expect(job.waitUntilFinished(queueEvents)).to.be.rejectedWith(
+        await expect(job.waitUntilFinished(queueEvents)).rejects.toThrow(
           `Missing key for job ${queue.toKey(job.id)}. isFinished`,
         );
 
@@ -1403,7 +1396,7 @@ describe('Job', function () {
 
       const job = await queue.add('test', { foo: 'bar' });
 
-      await expect(job.waitUntilFinished(queueEvents)).to.be.rejectedWith(
+      await expect(job.waitUntilFinished(queueEvents)).rejects.toThrow(
         'test error',
       );
 

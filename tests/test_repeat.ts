@@ -1,7 +1,5 @@
-import { expect } from 'chai';
 import { default as IORedis } from 'ioredis';
-import { beforeEach, describe, it } from 'mocha';
-import * as sinon from 'sinon';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { v4 } from 'uuid';
 import { rrulestr } from 'rrule';
 import {
@@ -31,7 +29,6 @@ const ONE_DAY = 24 * ONE_HOUR;
 const NoopProc = async (job: Job) => {};
 
 describe('repeat', function () {
-  this.timeout(10000);
   let repeat: Repeat;
   let queue: Queue;
   let queueEvents: QueueEvents;
@@ -40,7 +37,7 @@ describe('repeat', function () {
   const connection = { host: 'localhost' };
 
   beforeEach(async function () {
-    this.clock = sinon.useFakeTimers();
+    vi.useFakeTimers();
     queueName = `test-${v4()}`;
     queue = new Queue(queueName, { connection });
     repeat = new Repeat(queueName, { connection });
@@ -49,7 +46,8 @@ describe('repeat', function () {
   });
 
   afterEach(async function () {
-    this.clock.restore();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
     await queue.close();
     await repeat.close();
     await queueEvents.close();
@@ -60,7 +58,7 @@ describe('repeat', function () {
     it('should retry a job respecting exponential backoff strategy', async function () {
       let delay = 10000;
       const date = new Date('2017-02-07 9:24:00');
-      this.clock.setSystemTime(date);
+      vi.setSystemTime(date);
       const worker = new Worker(
         queueName,
         async () => {
@@ -68,14 +66,14 @@ describe('repeat', function () {
         },
         { autorun: false, connection },
       );
-      const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {
+      vi.spyOn(worker, 'delay').mockImplementation(async () => {
         console.log('delay');
       });
       await worker.waitUntilReady();
 
       const failing = new Promise<void>(resolve => {
         worker.on('failed', async job => {
-          this.clock.tick(delay + 10);
+          vi.advanceTimersByTime(delay + 10);
           delay = delay * 2;
 
           if (job.attemptsMade === 10) {
@@ -101,22 +99,21 @@ describe('repeat', function () {
       await failing;
 
       await worker.close();
-      delayStub.restore();
     });
   });
 
   it('it should stop repeating after endDate', async function () {
     const every = 100;
     const date = new Date('2017-02-07 9:24:00');
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
     const worker = new Worker(
       queueName,
       async () => {
-        this.clock.tick(every);
+        vi.advanceTimersByTime(every);
       },
       { autorun: false, connection },
     );
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+    vi.spyOn(worker, 'delay').mockImplementation(async () => {});
     await worker.waitUntilReady();
 
     let processed = 0;
@@ -142,7 +139,7 @@ describe('repeat', function () {
 
     expect(job.repeatJobKey).to.not.be.undefined;
 
-    this.clock.tick(every + 1);
+    vi.advanceTimersByTime(every + 1);
 
     worker.run();
 
@@ -154,7 +151,6 @@ describe('repeat', function () {
     expect(processed).to.be.equal(10);
 
     await worker.close();
-    delayStub.restore();
   });
 
   it('should create multiple jobs if they have the same cron pattern', async function () {
@@ -250,21 +246,20 @@ describe('repeat', function () {
   });
 
   it('should repeat every 2 seconds', async function () {
-    this.timeout(10000);
-
     const nextTick = 2 * ONE_SECOND + 100;
 
     const worker = new Worker(
       queueName,
       async () => {
-        this.clock.tick(nextTick);
+        vi.advanceTimersByTime(nextTick);
       },
       { autorun: false, connection },
     );
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+
+    vi.spyOn(worker, 'delay').mockImplementation(async () => {});
 
     const date = new Date('2017-02-07 9:24:00');
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
 
     await queue.add(
       'test',
@@ -272,7 +267,7 @@ describe('repeat', function () {
       { repeat: { pattern: '*/2 * * * * *' } },
     );
 
-    this.clock.tick(nextTick);
+    vi.advanceTimersByTime(nextTick);
 
     let prev: any;
     let counter = 0;
@@ -295,25 +290,23 @@ describe('repeat', function () {
 
     await completing;
     await worker.close();
-    delayStub.restore();
-  });
+  }, 10000);
 
   it('should repeat every 2 seconds with startDate in future', async function () {
-    this.timeout(10000);
-
     const date = new Date('2017-02-07 9:24:00');
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
     const nextTick = 2 * ONE_SECOND + 500;
     const delay = 5 * ONE_SECOND + 500;
 
     const worker = new Worker(
       queueName,
       async () => {
-        this.clock.tick(nextTick);
+        vi.advanceTimersByTime(nextTick);
       },
       { autorun: false, connection },
     );
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+
+    vi.spyOn(worker, 'delay').mockImplementation(async () => {});
 
     await queue.add(
       'test',
@@ -326,7 +319,7 @@ describe('repeat', function () {
       },
     );
 
-    this.clock.tick(nextTick + delay);
+    vi.advanceTimersByTime(nextTick + delay);
 
     let prev: Job;
     let counter = 0;
@@ -350,25 +343,25 @@ describe('repeat', function () {
     await completing;
 
     await worker.close();
-    delayStub.restore();
-  });
+  }, 10000);
 
   it('should repeat every 2 seconds with startDate in past', async function () {
-    this.timeout(10000);
-
     const date = new Date('2017-02-07 9:24:00');
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
     const nextTick = 2 * ONE_SECOND + 500;
     const delay = 5 * ONE_SECOND + 500;
 
     const worker = new Worker(
       queueName,
       async () => {
-        this.clock.tick(nextTick);
+        vi.advanceTimersByTime(nextTick);
       },
       { autorun: false, connection },
     );
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+
+    const delayStub = vi
+      .spyOn(worker, 'delay')
+      .mockImplementation(async () => {});
 
     await queue.add(
       'repeat',
@@ -381,7 +374,7 @@ describe('repeat', function () {
       },
     );
 
-    this.clock.tick(nextTick + delay);
+    vi.advanceTimersByTime(nextTick + delay);
 
     let prev: Job;
     let counter = 0;
@@ -404,11 +397,9 @@ describe('repeat', function () {
 
     await completing;
     await worker.close();
-    delayStub.restore();
-  });
+  }, 10000);
 
   it('should remove repeated job when using removeOnComplete', async function () {
-    this.timeout(10000);
     const queueName2 = `test-${v4()}`;
     const queue2 = new Queue(queueName2, {
       connection,
@@ -418,18 +409,20 @@ describe('repeat', function () {
     });
 
     const date = new Date('2017-02-07 9:24:00');
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
     const nextTick = 2 * ONE_SECOND + 500;
     const delay = 5 * ONE_SECOND + 500;
 
     const worker = new Worker(
       queueName,
       async () => {
-        this.clock.tick(nextTick);
+        vi.advanceTimersByTime(nextTick);
       },
       { autorun: false, connection },
     );
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+    const delayStub = vi
+      .spyOn(worker, 'delay')
+      .mockImplementation(async () => {});
 
     await queue.add(
       'test',
@@ -442,7 +435,7 @@ describe('repeat', function () {
       },
     );
 
-    this.clock.tick(nextTick + delay);
+    vi.advanceTimersByTime(nextTick + delay);
 
     let prev: Job;
     let counter = 0;
@@ -470,12 +463,10 @@ describe('repeat', function () {
     await queue2.close();
     await worker.close();
     await removeAllQueueData(new IORedis(), queueName2);
-    delayStub.restore();
-  });
+  }, 10000);
 
   describe('when custom cron strategy is provided', function () {
     it('should repeat every 2 seconds', async function () {
-      this.timeout(20000);
       const settings = {
         repeatStrategy: (millis, opts) => {
           const currentDate =
@@ -498,14 +489,16 @@ describe('repeat', function () {
       const worker = new Worker(
         queueName,
         async () => {
-          this.clock.tick(nextTick);
+          vi.advanceTimersByTime(nextTick);
         },
         { connection, settings },
       );
-      const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+      const delayStub = vi
+        .spyOn(worker, 'delay')
+        .mockImplementation(async () => {});
 
       const date = new Date('2017-02-07 9:24:00');
-      this.clock.setSystemTime(date);
+      vi.setSystemTime(date);
 
       await currentQueue.add(
         'test',
@@ -517,7 +510,7 @@ describe('repeat', function () {
         },
       );
 
-      this.clock.tick(nextTick);
+      vi.advanceTimersByTime(nextTick);
 
       let prev: any;
       let counter = 0;
@@ -539,12 +532,10 @@ describe('repeat', function () {
       await completing;
       await currentQueue.close();
       await worker.close();
-      delayStub.restore();
-    });
+    }, 20000);
 
     describe('when differentiating strategy by job name', function () {
       it('should repeat every 2 seconds', async function () {
-        this.timeout(10000);
         const settings = {
           repeatStrategy: (millis, opts, name) => {
             if (name === 'rrule') {
@@ -573,7 +564,7 @@ describe('repeat', function () {
         const worker = new Worker(
           queueName,
           async job => {
-            this.clock.tick(nextTick);
+            vi.advanceTimersByTime(nextTick);
 
             if (job.opts.repeat.count == 5) {
               const removed = await queue.removeRepeatable('rrule', repeat);
@@ -582,10 +573,12 @@ describe('repeat', function () {
           },
           { connection, settings },
         );
-        const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+        const delayStub = vi
+          .spyOn(worker, 'delay')
+          .mockImplementation(async () => {});
 
         const date = new Date('2017-02-07 9:24:00');
-        this.clock.setSystemTime(date);
+        vi.setSystemTime(date);
 
         const repeat = {
           pattern: 'RRULE:FREQ=SECONDLY;INTERVAL=2;WKST=MO',
@@ -598,7 +591,7 @@ describe('repeat', function () {
           },
         );
 
-        this.clock.tick(nextTick);
+        vi.advanceTimersByTime(nextTick);
 
         let prev: any;
         let counter = 0;
@@ -655,26 +648,24 @@ describe('repeat', function () {
           },
         );
 
-        this.clock.tick(nextTick);
+        vi.advanceTimersByTime(nextTick);
 
         await completing2;
 
         await currentQueue.close();
         await worker.close();
-        delayStub.restore();
-      });
+      }, 10000);
     });
   });
 
   it('should have repeatable job key with sha256 hashing when sha256 hash algorithm is provided', async function () {
-    this.timeout(20000);
     const settings = {
       repeatKeyHashAlgorithm: 'sha256',
     };
     const currentQueue = new Queue(queueName, { connection, settings });
 
     const worker = new Worker(queueName, null, { connection, settings });
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+    vi.spyOn(worker, 'delay');
     const jobName = 'jobName';
     const jobId = 'jobId';
     const endDate = '';
@@ -718,22 +709,21 @@ describe('repeat', function () {
 
     await currentQueue.close();
     await worker.close();
-    delayStub.restore();
-  });
+  }, 20000);
 
   it('should repeat every 2 seconds and start immediately', async function () {
     const date = new Date('2017-02-07 9:24:00');
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
     const nextTick = 2 * ONE_SECOND;
 
     const worker = new Worker(
       queueName,
       async () => {
-        this.clock.tick(nextTick);
+        vi.advanceTimersByTime(nextTick);
       },
       { connection },
     );
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+    const delayStub = vi.spyOn(worker, 'delay');
 
     let prev: Job;
     let counter = 0;
@@ -766,18 +756,15 @@ describe('repeat', function () {
       },
     );
 
-    this.clock.tick(100);
+    vi.advanceTimersByTime(100);
 
     await completing;
     await worker.close();
-    delayStub.restore();
   });
 
   it('should repeat once a day for 5 days and start immediately', async function () {
-    this.timeout(8000);
-
     const date = new Date('2017-05-05 01:01:00');
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
 
     const nextTick = ONE_DAY + 10 * ONE_SECOND;
     const delay = 5 * ONE_SECOND + 500;
@@ -785,7 +772,7 @@ describe('repeat', function () {
     const worker = new Worker(
       queueName,
       async () => {
-        this.clock.tick(nextTick);
+        vi.advanceTimersByTime(nextTick);
       },
       {
         autorun: false,
@@ -794,7 +781,7 @@ describe('repeat', function () {
         skipLockRenewal: true,
       },
     );
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {
+    const delayStub = vi.spyOn(worker, 'delay').mockImplementation(async () => {
       console.log('delay');
     });
 
@@ -829,20 +816,17 @@ describe('repeat', function () {
         },
       },
     );
-    this.clock.tick(delay);
+    vi.advanceTimersByTime(delay);
 
     worker.run();
 
     await completing;
     await worker.close();
-    delayStub.restore();
-  });
+  }, 8000);
 
   it('should repeat once a day for 5 days', async function () {
-    this.timeout(8000);
-
     const date = new Date('2017-05-05 13:12:00');
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
 
     const nextTick = ONE_DAY + 10 * ONE_SECOND;
     const delay = 5 * ONE_SECOND + 500;
@@ -850,7 +834,7 @@ describe('repeat', function () {
     const worker = new Worker(
       queueName,
       async () => {
-        this.clock.tick(nextTick);
+        vi.advanceTimersByTime(nextTick);
       },
       {
         autorun: false,
@@ -859,7 +843,8 @@ describe('repeat', function () {
         skipLockRenewal: true,
       },
     );
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {
+
+    vi.spyOn(worker, 'delay').mockImplementation(async () => {
       console.log('delay');
     });
 
@@ -895,21 +880,18 @@ describe('repeat', function () {
       },
     );
 
-    this.clock.tick(nextTick + delay);
+    vi.advanceTimersByTime(nextTick + delay);
 
     worker.run();
 
     await completing;
     await worker.close();
-    delayStub.restore();
-  });
+  }, 8000);
 
   describe('when utc option is provided', function () {
     it('repeats once a day for 5 days', async function () {
-      this.timeout(8000);
-
       const date = new Date('2017-05-05 13:12:00');
-      this.clock.setSystemTime(date);
+      vi.setSystemTime(date);
 
       const nextTick = ONE_DAY + 10 * ONE_SECOND;
       const delay = 5 * ONE_SECOND + 500;
@@ -917,11 +899,12 @@ describe('repeat', function () {
       const worker = new Worker(
         queueName,
         async () => {
-          this.clock.tick(nextTick);
+          vi.advanceTimersByTime(nextTick);
         },
         { autorun: false, connection },
       );
-      const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {
+
+      vi.spyOn(worker, 'delay').mockImplementation(async () => {
         console.log('delay');
       });
 
@@ -958,26 +941,24 @@ describe('repeat', function () {
           },
         },
       );
-      this.clock.tick(nextTick + delay);
+
+      vi.advanceTimersByTime(nextTick + delay);
 
       worker.run();
 
       await completing;
       await worker.close();
-      delayStub.restore();
-    });
+    }, 8000);
   });
 
   it('should repeat 7:th day every month at 9:25', async function () {
-    this.timeout(18000);
-
     const date = new Date('2017-02-02 7:21:42');
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
 
     const nextTick = () => {
       const now = moment();
       const nextMonth = moment().add(1, 'months');
-      this.clock.tick(nextMonth - now);
+      vi.advanceTimersByTime(nextMonth - now);
     };
 
     const worker = new Worker(
@@ -987,7 +968,8 @@ describe('repeat', function () {
       },
       { autorun: false, connection },
     );
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+
+    vi.spyOn(worker, 'delay').mockImplementation(async () => {});
 
     let counter = 25;
     let prev: Job;
@@ -1027,8 +1009,7 @@ describe('repeat', function () {
 
     await completing;
     await worker.close();
-    delayStub.restore();
-  });
+  }, 18000);
 
   describe('when 2 jobs with the same options are added', function () {
     it('creates only one job', async function () {
@@ -1059,7 +1040,7 @@ describe('repeat', function () {
     let prev: Job;
     let counter = 0;
 
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
 
     const nextTick = ONE_SECOND + 1;
     const repeat = { pattern: '*/1 * * * * *' };
@@ -1071,7 +1052,7 @@ describe('repeat', function () {
         if (counter == numJobs) {
           const removed = await queue.removeRepeatable('remove', repeat);
           expect(removed).to.be.true;
-          this.clock.tick(nextTick);
+          vi.advanceTimersByTime(nextTick);
           const delayed = await queue.getDelayed();
           expect(delayed).to.be.empty;
           resolve();
@@ -1082,13 +1063,13 @@ describe('repeat', function () {
     });
 
     const worker = new Worker(queueName, processor, { connection });
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+    vi.spyOn(worker, 'delay').mockImplementation(async () => {});
 
     await queue.add('remove', { foo: 'bar' }, { repeat });
-    this.clock.tick(nextTick);
+    vi.advanceTimersByTime(nextTick);
 
     worker.on('completed', job => {
-      this.clock.tick(nextTick);
+      vi.advanceTimersByTime(nextTick);
       if (prev) {
         expect(prev.timestamp).to.be.lt(job.timestamp);
         expect(job.timestamp - prev.timestamp).to.be.gte(ONE_SECOND);
@@ -1098,7 +1079,6 @@ describe('repeat', function () {
 
     await processing;
     await worker.close();
-    delayStub.restore();
   });
 
   it('should be able to remove repeatable jobs by key', async () => {
@@ -1141,14 +1121,14 @@ describe('repeat', function () {
     let processor;
     const jobId = 'xxxx';
 
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
 
     const nextTick = 2 * ONE_SECOND + 10;
     const repeat = { pattern: '*/2 * * * * *' };
 
     await queue.add('test', { foo: 'bar' }, { repeat, jobId });
 
-    this.clock.tick(nextTick);
+    vi.advanceTimersByTime(nextTick);
 
     const processing = new Promise<void>((resolve, reject) => {
       processor = async () => {
@@ -1156,7 +1136,7 @@ describe('repeat', function () {
         if (counter == numJobs) {
           try {
             await queue.removeRepeatable('test', repeat, jobId);
-            this.clock.tick(nextTick);
+            vi.advanceTimersByTime(nextTick);
             const delayed = await queue.getDelayed();
             expect(delayed).to.be.empty;
             resolve();
@@ -1170,11 +1150,11 @@ describe('repeat', function () {
     });
 
     const worker = new Worker(queueName, processor, { connection });
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+    vi.spyOn(worker, 'delay').mockImplementation(async () => {});
     await worker.waitUntilReady();
 
     worker.on('completed', job => {
-      this.clock.tick(nextTick);
+      vi.advanceTimersByTime(nextTick);
       if (prev) {
         expect(prev.timestamp).to.be.lt(job.timestamp);
         expect(job.timestamp - prev.timestamp).to.be.gte(2000);
@@ -1183,7 +1163,6 @@ describe('repeat', function () {
     });
 
     await processing;
-    delayStub.restore();
   });
 
   // This test is flaky and too complex we need something simpler that tests the same thing
@@ -1195,7 +1174,7 @@ describe('repeat', function () {
     const date = new Date('2017-02-07 9:24:00');
     const nextTick = 2 * ONE_SECOND + 100;
     const addNextRepeatableJob = repeat.addNextRepeatableJob;
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
 
     const repeatOpts = { pattern: '*/2 * * * * *' };
 
@@ -1221,13 +1200,13 @@ describe('repeat', function () {
       );
 
       worker.on('completed', () => {
-        this.clock.tick(nextTick);
+        vi.advanceTimersByTime(nextTick);
       });
     });
 
     await queue.add('test', { foo: 'bar' }, { repeat: repeatOpts, jobId });
 
-    this.clock.tick(nextTick);
+    vi.advanceTimersByTime(nextTick);
 
     await afterRemoved;
 
@@ -1245,7 +1224,7 @@ describe('repeat', function () {
 
     const worker = new Worker(queueName, NoopProc, { connection });
     await worker.waitUntilReady();
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+    vi.spyOn(worker, 'delay').mockImplementation(async () => {});
 
     await queue.add(
       'myTestJob',
@@ -1278,29 +1257,28 @@ describe('repeat', function () {
     expect(delayed.length).to.be.eql(1);
 
     await worker.close();
-    delayStub.restore();
   });
 
   it('should not repeat more than 5 times', async function () {
     const date = new Date('2017-02-07 9:24:00');
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
     const nextTick = ONE_SECOND + 500;
 
     const worker = new Worker(queueName, NoopProc, { connection });
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+    vi.spyOn(worker, 'delay').mockImplementation(async () => {});
 
     await queue.add(
       'repeat',
       { foo: 'bar' },
       { repeat: { limit: 5, pattern: '*/1 * * * * *' } },
     );
-    this.clock.tick(nextTick);
+    vi.advanceTimersByTime(nextTick);
 
     let counter = 0;
 
     const completing = new Promise<void>((resolve, reject) => {
       worker.on('completed', () => {
-        this.clock.tick(nextTick);
+        vi.advanceTimersByTime(nextTick);
         counter++;
         if (counter == 5) {
           resolve();
@@ -1312,7 +1290,6 @@ describe('repeat', function () {
 
     await completing;
     await worker.close();
-    delayStub.restore();
   });
 
   it('should processes delayed jobs by priority', async function () {
@@ -1320,7 +1297,7 @@ describe('repeat', function () {
     const nextTick = 1000;
 
     let processor;
-    this.clock.setSystemTime(new Date('2017-02-02 7:21:42'));
+    vi.setSystemTime(new Date('2017-02-02 7:21:42'));
 
     const processing = new Promise<void>((resolve, reject) => {
       processor = async (job: Job) => {
@@ -1343,7 +1320,7 @@ describe('repeat', function () {
       queue.add('test', { p: 3 }, { priority: 3, delay: nextTick }),
     ]);
 
-    this.clock.tick(nextTick * 3 + 100);
+    vi.advanceTimersByTime(nextTick * 3 + 100);
 
     const worker = new Worker(queueName, processor, { connection });
     await worker.waitUntilReady();
@@ -1357,16 +1334,16 @@ describe('repeat', function () {
     const interval = ONE_SECOND * 2;
     const date = new Date('2017-02-07 9:24:00');
 
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
 
     const nextTick = ONE_SECOND * 2 + 500;
 
     await queue.add('repeat m', { type: 'm' }, { repeat: { every: interval } });
     await queue.add('repeat s', { type: 's' }, { repeat: { every: interval } });
-    this.clock.tick(nextTick);
+    vi.advanceTimersByTime(nextTick);
 
     const worker = new Worker(queueName, async () => {}, { connection });
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+    vi.spyOn(worker, 'delay').mockImplementation(async () => {});
     await worker.waitUntilReady();
 
     let prevType: string;
@@ -1374,7 +1351,7 @@ describe('repeat', function () {
 
     const completing = new Promise<void>(resolve => {
       worker.on('completed', job => {
-        this.clock.tick(nextTick);
+        vi.advanceTimersByTime(nextTick);
         if (prevType) {
           expect(prevType).to.not.be.eql(job.data.type);
         }
@@ -1388,7 +1365,6 @@ describe('repeat', function () {
 
     await completing;
     await worker.close();
-    delayStub.restore();
   });
 
   it('should throw an error when using .pattern and .every simultaneously', async function () {
@@ -1398,18 +1374,18 @@ describe('repeat', function () {
         { type: 'm' },
         { repeat: { every: 5000, pattern: '* /1 * * * * *' } },
       ),
-    ).to.be.rejectedWith(
+    ).rejects.toThrow(
       'Both .pattern and .every options are defined for this repeatable job',
     );
   });
 
   it('should emit a waiting event when adding a repeatable job to the waiting list', async function () {
     const date = new Date('2017-02-07 9:24:00');
-    this.clock.setSystemTime(date);
+    vi.setSystemTime(date);
     const nextTick = 1 * ONE_SECOND + 500;
 
     const worker = new Worker(queueName, async job => {}, { connection });
-    const delayStub = sinon.stub(worker, 'delay').callsFake(async () => {});
+    vi.spyOn(worker, 'delay').mockImplementation(async () => {});
 
     const waiting = new Promise<void>((resolve, reject) => {
       queueEvents.on('waiting', function ({ jobId }) {
@@ -1431,16 +1407,15 @@ describe('repeat', function () {
       { foo: 'bar' },
       { repeat: { pattern: '*/1 * * * * *' } },
     );
-    this.clock.tick(nextTick);
+    vi.advanceTimersByTime(nextTick);
 
     await waiting;
     await worker.close();
-    delayStub.restore();
   });
 
   it('should have the right count value', async function () {
     await queue.add('test', { foo: 'bar' }, { repeat: { every: 1000 } });
-    this.clock.tick(ONE_SECOND + 100);
+    vi.advanceTimersByTime(ONE_SECOND + 100);
 
     let processor;
     const processing = new Promise<void>((resolve, reject) => {
@@ -1458,4 +1433,4 @@ describe('repeat', function () {
     await processing;
     await worker.close();
   });
-});
+}, 10000);

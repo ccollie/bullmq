@@ -1,4 +1,4 @@
-import { expect } from 'chai';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { default as IORedis, RedisOptions } from 'ioredis';
 import { v4 } from 'uuid';
 import { Queue, Job, Worker, QueueBase } from '../src/classes';
@@ -28,7 +28,7 @@ describe('connection', () => {
       expect(() => new QueueBase(queueName, { connection })).to.throw(
         'BullMQ: ioredis does not support ioredis prefixes, use the prefix option instead.',
       );
-      await connection.disconnect();
+      connection.disconnect();
     });
 
     it('should throw exception if using prefix with ioredis in cluster mode', async () => {
@@ -43,7 +43,7 @@ describe('connection', () => {
       expect(() => new QueueBase(queueName, { connection })).to.throw(
         'BullMQ: ioredis does not support ioredis prefixes, use the prefix option instead.',
       );
-      await connection.disconnect();
+      connection.disconnect();
     });
   });
 
@@ -92,7 +92,7 @@ describe('connection', () => {
 
       const queue2 = new QueueBase(`${queueName}2`, opts);
 
-      await expect(queue2.client).to.be.eventually.rejectedWith(
+      await expect(queue2.client).rejects.toThrow(
         'Eviction policy is volatile-lru. It should be "noeviction"',
       );
       await client.config('SET', 'maxmemory-policy', 'noeviction');
@@ -244,7 +244,7 @@ describe('connection', () => {
       connection: { port: 1234, host: '127.0.0.1', retryStrategy: () => null },
     });
 
-    await expect(queueFail.waitUntilReady()).to.be.eventually.rejectedWith(
+    await expect(queueFail.waitUntilReady()).rejects.toThrow(
       'connect ECONNREFUSED 127.0.0.1:1234',
     );
   });
@@ -275,11 +275,11 @@ describe('connection', () => {
 
     queueFail.on('error', () => {});
 
-    await expect(queueFail.waitUntilReady()).to.be.rejectedWith(
+    await expect(queueFail.waitUntilReady()).rejects.toThrow(
       'connect ECONNREFUSED 127.0.0.1:1234',
     );
 
-    await expect(queueFail.close()).to.be.eventually.equal(undefined);
+    await expect(queueFail.close()).resolves.toEqual(undefined);
   });
 
   it('should close if connection is failing', async () => {
@@ -291,9 +291,9 @@ describe('connection', () => {
       },
     });
 
-    await expect(queueFail.close()).to.be.eventually.equal(undefined);
+    await expect(queueFail.close()).resolves.toEqual(undefined);
 
-    await expect(queueFail.waitUntilReady()).to.be.eventually.rejectedWith(
+    await expect(queueFail.waitUntilReady()).rejects.toThrow(
       'connect ECONNREFUSED 127.0.0.1:1234',
     );
   });

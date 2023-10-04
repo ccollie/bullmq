@@ -1,14 +1,11 @@
 import { after } from 'lodash';
-import { describe, beforeEach, it } from 'mocha';
-import { expect } from 'chai';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { default as IORedis } from 'ioredis';
 import { v4 } from 'uuid';
 import { Queue, Job, Worker, QueueEvents } from '../src/classes';
 import { removeAllQueueData, delay } from '../src/utils';
 
 describe('Delayed jobs', function () {
-  this.timeout(15000);
-
   let queue: Queue;
   let queueName: string;
 
@@ -156,7 +153,6 @@ describe('Delayed jobs', function () {
   });
 
   it('should process delayed jobs in correct order respecting delay', async function () {
-    this.timeout(7500);
     let order = 0;
     const numJobs = 12;
     const margin = 1.2;
@@ -204,10 +200,9 @@ describe('Delayed jobs', function () {
     worker.run();
     await processing;
     await worker.close();
-  });
+  }, 7500);
 
   it('should process delayed jobs with several workers respecting delay', async function () {
-    this.timeout(30000);
     let count = 0;
     const numJobs = 50;
     const margin = 1.22;
@@ -272,7 +267,7 @@ describe('Delayed jobs', function () {
     await processing;
     await worker.close();
     await worker2.close();
-  });
+  }, 30000);
 
   it('should process delayed jobs concurrently respecting delay and concurrency', async function () {
     const delay = 250;
@@ -372,7 +367,7 @@ describe('Delayed jobs', function () {
       expect(count).to.be.equal(0);
 
       await worker.close();
-    }).timeout(4000);
+    }, 4000);
   });
 
   it('should process delayed jobs with exact same timestamps in correct order (FIFO)', async function () {
@@ -477,4 +472,4 @@ describe('Delayed jobs', function () {
       await worker.close();
     });
   });
-});
+}, 15000);

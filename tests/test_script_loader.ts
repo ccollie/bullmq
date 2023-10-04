@@ -1,6 +1,5 @@
-import { expect } from 'chai';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import * as path from 'path';
-import * as sinon from 'sinon';
 import {
   ScriptLoader,
   ScriptLoaderError,
@@ -282,7 +281,7 @@ describe('scriptLoader', () => {
 
     it('caches loadScripts calls per directory', async () => {
       const loader = new ScriptLoader();
-      const loadScriptSpy = sinon.spy(loader, 'loadScripts');
+      const loadScriptSpy = vi.spyOn(loader, 'loadScripts');
 
       const dirname = __dirname + '/fixtures/scripts/dir-test';
       const dirname1 = __dirname + '/fixtures/scripts/load';
@@ -291,24 +290,23 @@ describe('scriptLoader', () => {
       await loader.loadScripts(dirname);
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      expect(loader.loadScripts.calledOnce);
+      expect(loadScriptSpy).toHaveBeenCalledOnce();
 
       await loader.loadScripts(dirname1);
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      expect(loader.loadScripts.calledTwice);
+      expect(loadScriptSpy).toHaveBeenCalledTimes(2);
 
       await loader.loadScripts(dirname1);
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      expect(loader.loadScripts.calledTwice);
-      loadScriptSpy.restore();
+      expect(loadScriptSpy).toHaveBeenCalledTimes(2);
     });
 
     it('throws error if no lua files are found in a directory', async () => {
       const dirname = __dirname + '/fixtures/scripts/dir-test/empty';
 
-      await expect(loader.loadScripts(dirname)).to.be.eventually.rejectedWith(
+      await expect(loader.loadScripts(dirname)).rejects.toThrow(
         'No .lua files found!',
       );
     });
@@ -337,6 +335,7 @@ describe('scriptLoader', () => {
     });
 
     afterEach(async () => {
+      vi.restoreAllMocks();
       await connection.disconnect();
     });
 
@@ -346,21 +345,21 @@ describe('scriptLoader', () => {
     });
 
     it('sets commands on a client only once', async () => {
-      const loadScriptSpy = sinon.spy(loader, 'loadScripts');
+      const loadScriptSpy = vi.spyOn(loader, 'loadScripts');
       await loader.load(client, path);
       await loader.load(client, path);
       await loader.load(client, path);
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      expect(loader.loadScripts.calledOnce);
-      loadScriptSpy.restore();
+      expect(loadScriptSpy).toHaveBeenCalledTimes(1);
+      vi.restoreAllMocks();
     });
   });
 
   describe('.clearCache', () => {
     it('can clear the command cache', async () => {
       const loader = new ScriptLoader();
-      const loadScriptSpy = sinon.spy(loader, 'loadScripts');
+      const loadScriptSpy = vi.spyOn(loader, 'loadScripts');
 
       const dirname = __dirname + '/fixtures/scripts/dir-test';
       const dirname1 = __dirname + '/fixtures/scripts/load';
@@ -369,20 +368,22 @@ describe('scriptLoader', () => {
       await loader.loadScripts(dirname1);
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      const origCallCount = loader.loadScripts.callCount;
+      const origCallCount = loadScriptSpy.mock.calls.length;
 
       loader.clearCache();
 
       await loader.loadScripts(dirname);
+      let callCount = loadScriptSpy.mock.calls.length;
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      expect(loader.loadScripts.callCount - origCallCount).to.eq(1);
+      expect(callCount - origCallCount).to.eq(1);
 
       await loader.loadScripts(dirname1);
+      callCount = loadScriptSpy.mock.calls.length;
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      expect(loader.loadScripts.callCount - origCallCount).to.eq(2);
-      loadScriptSpy.restore();
+      expect(callCount - origCallCount).to.eq(2);
+      vi.restoreAllMocks();
     });
   });
 });

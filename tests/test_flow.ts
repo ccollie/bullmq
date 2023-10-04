@@ -1,6 +1,5 @@
-import { expect } from 'chai';
 import { default as IORedis } from 'ioredis';
-import { beforeEach, describe, it } from 'mocha';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { v4 } from 'uuid';
 import {
   Job,
@@ -538,7 +537,6 @@ describe('flows', () => {
 
   describe('when chaining flows at runtime using step jobs', () => {
     it('should wait children as one step of the parent job', async function () {
-      this.timeout(8000);
       const childrenQueueName = `children-queue-${v4()}`;
       const grandchildrenQueueName = `grandchildren-queue-${v4()}`;
 
@@ -652,7 +650,7 @@ describe('flows', () => {
       await flow.close();
       await worker.close();
       await childrenWorker.close();
-    });
+    }, 8000);
   });
 
   describe('when moving jobs from wait to active continuing', async () => {
@@ -1222,8 +1220,6 @@ describe('flows', () => {
     });
 
     it('processes parent jobs added while a child job is active', async function () {
-      this.timeout(10_000);
-
       const worker = new Worker(
         queueName,
         async () => {
@@ -1282,7 +1278,7 @@ describe('flows', () => {
       expect(state).to.be.equal('completed');
 
       await flow.close();
-    });
+    }, 10_000);
   });
 
   describe('when custom prefix is set in flow producer', async () => {
@@ -3078,7 +3074,7 @@ describe('flows', () => {
       expect(nextJob).to.not.be.undefined;
       expect(await (nextJob as Job).getState()).to.be.equal('active');
 
-      await expect(tree.job.remove()).to.be.rejectedWith(
+      await expect(tree.job.remove()).rejects.toThrow(
         `Job ${tree.job.id} could not be removed because it is locked by another worker`,
       );
 

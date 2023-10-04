@@ -1,7 +1,6 @@
-import { expect } from 'chai';
 import { default as IORedis } from 'ioredis';
 import { after, every } from 'lodash';
-import { beforeEach, describe, it } from 'mocha';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { v4 } from 'uuid';
 import {
   FlowProducer,
@@ -33,7 +32,6 @@ describe('Rate Limiter', function () {
   });
 
   it('should not put a job into the delayed queue when limit is hit', async function () {
-    this.timeout(6000);
     const numJobs = 5;
     const worker = new Worker(
       queueName,
@@ -64,11 +62,9 @@ describe('Rate Limiter', function () {
     const delayedCount = await queue.getDelayedCount();
     expect(delayedCount).to.equal(0);
     await worker.close();
-  });
+  }, 6000);
 
   it('should obey the rate limit', async function () {
-    this.timeout(20000);
-
     const numJobs = 10;
 
     const worker = new Worker(queueName, async () => {}, {
@@ -111,7 +107,7 @@ describe('Rate Limiter', function () {
 
     await result;
     await worker.close();
-  });
+  }, 20000);
 
   it('should quickly close a worker even with slow rate-limit', async function () {
     const limiter = { max: 1, duration: 60 * 1000 };
@@ -126,8 +122,6 @@ describe('Rate Limiter', function () {
 
   describe('when queue is paused between rate limit', () => {
     it('should add active jobs to paused', async function () {
-      this.timeout(20000);
-
       const numJobs = 4;
 
       const commontOpts = {
@@ -175,12 +169,11 @@ describe('Rate Limiter', function () {
       await worker2.close();
       await worker3.close();
       await worker4.close();
-    });
+    }, 20000);
   });
 
   describe('when using flows', () => {
     it('should obey the rate limit per queue', async function () {
-      this.timeout(20000);
       const name = 'child-job';
       const parentQueueName = `parent-queue-${v4()}`;
       const parentQueueEvents = new QueueEvents(parentQueueName, {
@@ -282,12 +275,10 @@ describe('Rate Limiter', function () {
       await worker.close();
       await parentWorker.close();
       await parentQueueEvents.close();
-    });
+    }, 20000);
   });
 
   it('should obey the rate limit with max value greater than 1', async function () {
-    this.timeout(20000);
-
     const numJobs = 10;
 
     const worker = new Worker(queueName, async () => {}, {
@@ -330,12 +321,10 @@ describe('Rate Limiter', function () {
 
     await result;
     await worker.close();
-  });
+  }, 20000);
 
   describe('when dynamic limit is used', () => {
     it('should obey the rate limit', async function () {
-      this.timeout(5000);
-
       const numJobs = 10;
       const dynamicLimit = 250;
       const duration = 100;
@@ -398,7 +387,7 @@ describe('Rate Limiter', function () {
 
       await result;
       await worker.close();
-    });
+    }, 5000);
 
     describe('when reaching max attempts and we want to move the job to failed', () => {
       it('should throw Unrecoverable error', async function () {
@@ -452,8 +441,6 @@ describe('Rate Limiter', function () {
 
     describe('when priority is provided', () => {
       it('should obey the rate limit respecting priority', async function () {
-        this.timeout(6000);
-
         let extraCount = 3;
         let priority = 9;
         const numJobs = 4;
@@ -508,12 +495,10 @@ describe('Rate Limiter', function () {
 
         await result;
         await worker.close();
-      });
+      }, 6000);
 
       describe('when priority is the same for some jobs', () => {
         it('should get jobs in fifo order', async function () {
-          this.timeout(6000);
-
           const numJobs = 4;
           const dynamicLimit = 500;
           const duration = 100;
@@ -545,12 +530,10 @@ describe('Rate Limiter', function () {
 
           await worker.close();
         });
-      });
+      }, 6000);
 
       describe('when priority is different for some jobs', () => {
         it('should get jobs in fifo order', async function () {
-          this.timeout(6000);
-
           const numJobs = 4;
           const dynamicLimit = 250;
           const duration = 100;
@@ -582,7 +565,7 @@ describe('Rate Limiter', function () {
           await worker.close();
         });
       });
-    });
+    }, 6000);
 
     describe('when queue is paused', () => {
       it('moves job to paused', async function () {
@@ -636,7 +619,6 @@ describe('Rate Limiter', function () {
 
   describe('when there are more added jobs than max limiter', () => {
     it('processes jobs as max limiter from the beginning', async function () {
-      this.timeout(5000);
       let parallelJobs = 0;
 
       const processor = async () => {
@@ -679,11 +661,10 @@ describe('Rate Limiter', function () {
       await allCompleted;
 
       await worker.close();
-    });
+    }, 5000);
 
     describe('when rate limit is max 1', () => {
       it('processes jobs as max limiter from the beginning', async function () {
-        this.timeout(5000);
         let parallelJobs = 0;
 
         const processor = async () => {
@@ -727,12 +708,10 @@ describe('Rate Limiter', function () {
 
         await worker.close();
       });
-    });
+    }, 5000);
   });
 
   it('should obey priority', async function () {
-    this.timeout(10000);
-
     const numJobs = 10;
     const priorityBuckets: { [key: string]: number } = {
       '1': 0,
@@ -807,5 +786,5 @@ describe('Rate Limiter', function () {
 
     await result;
     await worker.close();
-  });
+  }, 10000);
 });

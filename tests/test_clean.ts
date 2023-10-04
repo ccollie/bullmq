@@ -1,7 +1,6 @@
-import { expect } from 'chai';
 import { default as IORedis } from 'ioredis';
 import { after } from 'lodash';
-import { beforeEach, describe, it } from 'mocha';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { v4 } from 'uuid';
 import {
   FlowProducer,
@@ -469,8 +468,6 @@ describe('Cleaner', () => {
 
       describe('when creating children at runtime and call clean when parent is active', () => {
         it('does not delete parent record', async function () {
-          this.timeout(4000);
-
           enum Step {
             Initial,
             Second,
@@ -564,7 +561,7 @@ describe('Cleaner', () => {
 
           await worker.close();
         });
-      });
+      }, 4000);
     });
 
     describe('when parent belongs to different queue', async () => {
